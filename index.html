@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mohamed Qayati Video Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: an editing-timeline portfolio. The hero holds a working timeline whose clips link to the work; each work card carries its real duration and aspect ratio as timecode. */
+:root {
+  --bg: #ECEFF2;
+  --surface: #FFFFFF;
+  --ink: #12151A;
+  --muted: #566070;
+  --line: #CBD2DA;
+  --accent: #2447F5;
+  --accent-ink: #FFFFFF;
+  --media: #0B0D11;
+  --track: #DDE2E8;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1115; --surface: #171B21; --ink: #ECEFF3; --muted: #98A2B1;
+    --line: #2B323B; --accent: #7F98FF; --accent-ink: #0E1115; --media: #05070A; --track: #1E242C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1115; --surface: #171B21; --ink: #ECEFF3; --muted: #98A2B1;
+  --line: #2B323B; --accent: #7F98FF; --accent-ink: #0E1115; --media: #05070A; --track: #1E242C;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-block: 0 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin-inline: auto; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* Top bar */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  background: var(--bg); z-index: 10;
+}
+.bar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 14px; }
+.mark { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.01em; text-decoration: none; }
+.nav { display: flex; gap: 20px; font-size: 14px; font-weight: 500; }
+.nav a { text-decoration: none; color: var(--muted); }
+.nav a:hover { color: var(--ink); }
+
+/* Hero */
+.hero { padding-block: 64px 40px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+h1 {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(36px, 6.4vw, 72px); line-height: 1.02; letter-spacing: -0.025em;
+  margin: 0; max-width: 16ch; text-wrap: balance;
+}
+.lede { max-width: 58ch; color: var(--muted); font-size: 18px; margin: 22px 0 0; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px;
+  border-radius: 999px; font-weight: 600; font-size: 15px; text-decoration: none; cursor: pointer;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink); font-family: inherit;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:hover { filter: brightness(1.08); }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 32px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.facts li { display: flex; gap: 8px; }
+.facts span:first-child { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-top: 2px; }
+
+/* Timeline panel */
+.timeline {
+  margin-top: 44px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 14px 16px; overflow: hidden;
+}
+.tl-head { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.ruler {
+  height: 14px; margin-bottom: 8px;
+  background-image: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 12px);
+  background-size: 100% 6px; background-repeat: no-repeat;
+  border-bottom: 1px solid var(--line);
+}
+.track { display: flex; gap: 3px; align-items: stretch; margin-top: 6px; }
+.track-label { flex: 0 0 28px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); display: flex; align-items: center; }
+.clips { display: flex; gap: 3px; flex: 1; min-width: 0; }
+.clip {
+  flex: var(--w) 1 0; min-width: 0; height: 44px; border-radius: 4px; background: var(--accent); color: var(--accent-ink);
+  text-decoration: none; padding: 5px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  overflow: hidden;
+}
+.clip b { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clip i { font-style: normal; font-family: var(--font-mono); font-size: 10px; opacity: 0.8; }
+.clip:hover { filter: brightness(1.12); }
+.cap { flex: var(--w) 1 0; min-width: 0; height: 18px; border-radius: 3px; background: var(--track); }
+.aud {
+  flex: 1; height: 22px; border-radius: 3px; background: var(--track);
+  background-image: repeating-linear-gradient(90deg, var(--muted) 0 1px, transparent 1px 4px);
+  opacity: 0.55; -webkit-mask-image: linear-gradient(0deg, #000 0 100%);
+}
+
+/* Sections */
+section { padding-top: 72px; scroll-margin-top: 70px; }
+h2 { font-family: var(--font-display); font-size: clamp(26px, 3.6vw, 38px); letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 8px; }
+.sub { color: var(--muted); margin: 0 0 32px; max-width: 60ch; }
+
+/* Work grid */
+.group { margin-top: 44px; }
+.ghead { margin-bottom: 16px; }
+.ghead h3 { font-family: var(--font-display); font-size: 22px; letter-spacing: -0.01em; margin: 0 0 2px; }
+.ghead p { margin: 0; color: var(--muted); font-size: 14.5px; }
+.cards { display: grid; gap: 20px; align-items: start; }
+.cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cards.v { max-width: 760px; }
+.piece { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.frame { background: var(--media); position: relative; }
+.frame.h { aspect-ratio: 16 / 9; }
+.frame.v { aspect-ratio: 9 / 16; max-height: 520px; margin-inline: auto; width: 100%; }
+.frame video, .frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.frame video { position: absolute; inset: 0; opacity: 0; transition: opacity .25s; }
+.frame video.on { opacity: 1; }
+.tc {
+  position: absolute; left: 10px; bottom: 10px; font-family: var(--font-mono); font-size: 11px; color: #fff;
+  background: rgba(0,0,0,.62); padding: 3px 7px; border-radius: 4px; letter-spacing: .03em;
+}
+.info { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.info h3 { font-family: var(--font-display); font-size: 19px; margin: 0; letter-spacing: -0.01em; line-height: 1.2; }
+.info p { margin: 0; color: var(--muted); font-size: 14.5px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tags span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+.full { margin-top: auto; padding-top: 10px; font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.full:hover { text-decoration: underline; }
+.full[hidden] { display: none; }
+
+/* Services */
+.svc { border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 8px 32px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.row h3 { font-family: var(--font-display); font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+.row p { margin: 0; color: var(--muted); max-width: 62ch; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: var(--accent); color: var(--accent-ink); padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: 3px; }
+
+/* Contact */
+.contact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: clamp(24px, 4vw, 44px); display: grid; gap: 24px; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: end; }
+.contact h2 { margin-bottom: 10px; }
+.contact p { margin: 0; color: var(--muted); max-width: 46ch; }
+.who { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+.num { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.01em; margin: 0 0 14px; user-select: all; overflow-wrap: anywhere; }
+.copied { font-size: 13px; color: var(--muted); margin-left: 10px; min-height: 1em; }
+footer { padding-top: 40px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+
+@media (max-width: 860px) {
+  .cards.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .frame.v { max-height: 520px; }
+  .row, .contact { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .hero { padding-block: 40px 28px; }
+  .cards.two, .cards.three { grid-template-columns: minmax(0, 1fr); }
+  .clip b { display: none; }
+  .nav { gap: 14px; }
+  .clip { padding: 5px 5px; }
+  .clip b { font-size: 10px; }
+  .track-label { flex-basis: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .frame video { transition: none; }
+}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="mark" href="#top">Mohamed Qayati</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#work">Work</a>
+      <a href="#services">Services</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="top">
+  <div class="hero">
+    <p class="eyebrow">Freelance video editor</p>
+    <h1>Reels, subtitles and motion text, cut in CapCut.</h1>
+    <p class="lede">I'm Mohamed Ahmed Qayati. I edit short-form reels, Arabic and English subtitled videos, and animated Arabic typography. I'm also ready to take on long-form and lecture editing.</p>
+    <div class="cta">
+      <a class="btn primary" href="#work">See the work</a>
+      <a class="btn" href="#contact">Get in touch</a>
+    </div>
+    <ul class="facts">
+      <li><span>Tool</span><span>CapCut</span></li>
+      <li><span>Formats</span><span>9:16 and 16:9</span></li>
+      <li><span>Subtitles</span><span>Arabic, English, bilingual</span></li>
+    </ul>
+
+    <div class="timeline" aria-label="Project timeline linking to each piece of work">
+      <div class="tl-head"><span>Sequence: Selected work</span><span>8 clips</span></div>
+      <div class="ruler" aria-hidden="true"></div>
+      <div class="track">
+        <span class="track-label">V1</span>
+        <div class="clips">
+          <a class="clip" style="--w:8.4" href="#subtitles"><b>Subtitles</b><i>1:11</i></a>
+          <a class="clip" style="--w:9.9" href="#cinematic"><b>Reciter</b><i>1:38</i></a>
+          <a class="clip" style="--w:17.4" href="#longform"><b>Long-form</b><i>5:02</i></a>
+          <a class="clip" style="--w:3.7" href="#motion"><b>Motion text</b><i>0:13</i></a>
+          <a class="clip" style="--w:7.0" href="#poetry1"><b>Poetry</b><i>0:49</i></a>
+          <a class="clip" style="--w:5.7" href="#poetry2"><b>Poetry + video</b><i>0:33</i></a>
+          <a class="clip" style="--w:8.5" href="#reel"><b>Tech reel</b><i>1:12</i></a>
+          <a class="clip" style="--w:6.3" href="#explainer"><b>Explainer</b><i>0:40</i></a>
+        </div>
+      </div>
+      <div class="track" aria-hidden="true">
+        <span class="track-label">T1</span>
+        <div class="clips">
+          <span class="cap" style="--w:8.4"></span><span class="cap" style="--w:9.9"></span><span class="cap" style="--w:17.4"></span><span class="cap" style="--w:3.7"></span><span class="cap" style="--w:7.0"></span><span class="cap" style="--w:5.7"></span><span class="cap" style="--w:8.5"></span><span class="cap" style="--w:6.3"></span>
+        </div>
+      </div>
+      <div class="track" aria-hidden="true">
+        <span class="track-label">A1</span>
+        <div class="aud"></div>
+      </div>
+    </div>
+  </div>
+
+  <section id="work">
+    <h2>Selected work</h2>
+    <p class="sub">Eight edits, each shown with its real running time. Previews play silently; full videos open in a new tab.</p>
+
+    <div class="group">
+      <div class="ghead"><h3>Captions, titles and long-form</h3><p>Subtitled footage, name titles over B-roll, and a full-length talk.</p></div>
+      <div class="cards three">
+        <article class="piece" id="subtitles">
+          <div class="frame h">
+            <img src="media/subtitles.jpg" alt="Frame from a night-street scene in a rounded frame with Arabic and English subtitles" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/subtitles.jpg"><source src="media/subtitles.mp4" type="video/mp4"></video>
+            <span class="tc">1:11 · 16:9</span>
+          </div>
+          <div class="info">
+            <h3>Bilingual subtitles</h3>
+            <p>Arabic and English captions stacked under rounded-frame footage, timed to each line and readable on bright and dark shots.</p>
+            <div class="tags"><span>Arabic + English</span><span>B-roll</span></div>
+            <a class="full" data-key="subtitles" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+        <article class="piece" id="cinematic">
+          <div class="frame h">
+            <img src="media/cinematic.jpg" alt="Frame from a sunset sea scene in a rounded frame on a black background" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/cinematic.jpg"><source src="media/cinematic.mp4" type="video/mp4"></video>
+            <span class="tc">1:38 · 16:9</span>
+          </div>
+          <div class="info">
+            <h3>Reciter showcase</h3>
+            <p>A name title opens a sequence of sunset, sea and city footage in rounded frames, graded in one warm palette.</p>
+            <div class="tags"><span>Titles</span><span>Color match</span></div>
+            <a class="full" data-key="cinematic" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+        <article class="piece" id="longform">
+          <div class="frame h">
+            <img src="media/longform.jpg" alt="Frame from a long talking-head video cutting away to a mountain landscape with a caption" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/longform.jpg"><source src="media/longform.mp4" type="video/mp4"></video>
+            <span class="tc">5:02 · 16:9</span>
+          </div>
+          <div class="info">
+            <h3>Long-form talk</h3>
+            <p>A five-minute single-camera talk with cutaways to landscape footage, on-screen words and masked images.</p>
+            <div class="tags"><span>Long-form</span><span>Cutaways</span></div>
+            <a class="full" data-key="longform" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="ghead"><h3>Motion typography</h3><p>Arabic words and verses animated on screen, built around a speaker or a video clip.</p></div>
+      <div class="cards three">
+        <article class="piece" id="motion">
+          <div class="frame h">
+            <img src="media/motion.jpg" alt="Frame from an animated Arabic typography video with large stylised letters" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/motion.jpg"><source src="media/motion.mp4" type="video/mp4"></video>
+            <span class="tc">0:13 · 16:9</span>
+          </div>
+          <div class="info">
+            <h3>Arabic motion typography</h3>
+            <p>Words pop in one by one in different Arabic typefaces and colors beside a framed speaker, on a warm paper background.</p>
+            <div class="tags"><span>Motion text</span><span>Arabic type</span></div>
+            <a class="full" data-key="motion" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+        <article class="piece" id="poetry1">
+          <div class="frame h">
+            <img src="media/poetry1.jpg" alt="Frame from animated Arabic verse with a framed speaker cutout on a cream background" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/poetry1.jpg"><source src="media/poetry1.mp4" type="video/mp4"></video>
+            <span class="tc">0:49 · 16:9</span>
+          </div>
+          <div class="info">
+            <h3>Animated Arabic poetry</h3>
+            <p>Verse lines animate word by word with changing letterforms, small framed speaker cutouts and a signature line at the top.</p>
+            <div class="tags"><span>Motion text</span><span>Poetry</span></div>
+            <a class="full" data-key="poetry1" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+        <article class="piece" id="poetry2">
+          <div class="frame h">
+            <img src="media/poetry2.jpg" alt="Frame from animated Arabic verse with a video clip and a caption line beneath" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/poetry2.jpg"><source src="media/poetry2.mp4" type="video/mp4"></video>
+            <span class="tc">0:33 · 16:9</span>
+          </div>
+          <div class="info">
+            <h3>Poetry with video inserts</h3>
+            <p>Animated lines of Arabic verse alternate with short video clips, each with a caption line beneath. 1080p source.</p>
+            <div class="tags"><span>Motion text</span><span>Video inserts</span></div>
+            <a class="full" data-key="poetry2" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="ghead"><h3>Reels and animated explainers</h3><p>Vertical videos for TikTok and Reels.</p></div>
+      <div class="cards two v">
+        <article class="piece" id="reel">
+          <div class="frame v">
+            <img src="media/reel.jpg" alt="Frame from a vertical tech reel: a speaker with a holographic code overlay and large Arabic captions" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/reel.jpg"><source src="media/reel.mp4" type="video/mp4"></video>
+            <span class="tc">1:12 · 9:16</span>
+          </div>
+          <div class="info">
+            <h3>Tech reel</h3>
+            <p>A talking-head reel with a holographic code overlay, large highlight captions on key phrases and quick cuts.</p>
+            <div class="tags"><span>Reels</span><span>Captions</span><span>Overlay</span></div>
+            <a class="full" data-key="reel" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+        <article class="piece" id="explainer">
+          <div class="frame v">
+            <img src="media/explainer.jpg" alt="Frame from a vertical animated scene of a worker in a server room with an Arabic title above" loading="lazy">
+            <video muted loop playsinline preload="none" poster="media/explainer.jpg"><source src="media/explainer.mp4" type="video/mp4"></video>
+            <span class="tc">0:40 · 9:16</span>
+          </div>
+          <div class="info">
+            <h3>Animated explainer</h3>
+            <p>Animated scenes about a system outage, from alarm screens to a lightbulb moment, under a fixed Arabic title.</p>
+            <div class="tags"><span>Explainer</span><span>Vertical</span><span>Titles</span></div>
+            <a class="full" data-key="explainer" href="#" target="_blank" rel="noopener" hidden>Watch full video</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="services">
+    <h2>What I can edit for you</h2>
+    <p class="sub">Send raw footage and a short note on the tone you want. I deliver in the format your platform needs.</p>
+    <div class="svc">
+      <div class="row">
+        <h3>Short-form reels</h3>
+        <p>TikTok, Reels and Shorts in 9:16. Tight cuts, hook in the first seconds, sound and captions built for viewers who watch on mute.</p>
+      </div>
+      <div class="row">
+        <h3>Subtitles and captions</h3>
+        <p>Arabic, English or both on screen, timed to speech and styled so key phrases stand out.</p>
+      </div>
+      <div class="row">
+        <h3>Motion text</h3>
+        <p>Animated words and titles, including Arabic typography, to emphasise a point or open a video.</p>
+      </div>
+      <div class="row">
+        <h3>Long-form and lecture editing <span class="pill">Available</span></h3>
+        <p>Cutting dead air and stumbles, adding on-screen key points and chapter titles, and keeping a clean look across a full lesson. I can start with a short sample of your recording so you see the result first.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="contact">
+      <div>
+        <h2>Let's work on your next video.</h2>
+        <p>Tell me what you're making, how long it runs and when you need it. I'll reply with how I'd approach it.</p>
+      </div>
+      <div>
+        <div class="who">Mohamed Ahmed Qayati</div>
+        <p class="num" id="phone">01050900031</p>
+        <button class="btn primary" id="copy" type="button">Copy number</button>
+        <span class="copied" id="copied" role="status"></span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Edited in CapCut.</span>
+    <span>© 2026 Mohamed Ahmed Qayati</span>
+  </footer>
+</main>
+
+<script>
+// Paste each full-video Google Drive link (set to "Anyone with the link") between the quotes.
+// A "Watch full video" link appears under a piece only when its link is filled in.
+var DRIVE_LINKS = {
+  subtitles: "https://drive.google.com/file/d/12EU-me0atdhOtOQwA0pxSL9O1uQwwT_r/view?usp=drivesdk",
+  cinematic: "https://drive.google.com/file/d/17Ic2PQ0vyAcOb2YboqpSxvwRmejwH2nb/view?usp=drivesdk",
+  longform: "https://drive.google.com/file/d/1ZBYaCadUImQXImzoZtOn1wKiHjOUAQd-/view?usp=drivesdk",
+  motion: "https://drive.google.com/file/d/1GUzVVmRB46MYijyXTMHdxYZtkMGXP8Sa/view?usp=drivesdk",
+  poetry1: "https://drive.google.com/file/d/1ufHot-nbEGFTE_LETBPEVrMNTYoKhlOE/view?usp=drivesdk",
+  poetry2: "https://drive.google.com/file/d/1xM7x-MX_yyJ6aSSdZ0lRUV_nKfuKYDTp/view?usp=drivesdk",
+  reel: "https://drive.google.com/file/d/1l6_1FJ8cBWKjyNlYieDbUvKitSK0c5h0/view?usp=drivesdk",
+  explainer: "https://drive.google.com/file/d/1uduS1AiTPap8slXiVpzAPwUHKaSwdkPh/view?usp=drivesdk"
+};
+
+document.querySelectorAll("a.full").forEach(function (a) {
+  var url = DRIVE_LINKS[a.dataset.key];
+  if (url) { a.href = url; a.hidden = false; }
+});
+
+// Play each silent preview only while it is on screen.
+var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!reduce && "IntersectionObserver" in window) {
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      var v = e.target;
+      if (e.isIntersecting) {
+        var p = v.play();
+        if (p && p.then) { p.then(function () { v.classList.add("on"); }).catch(function () {}); }
+      } else {
+        v.pause();
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll(".frame video").forEach(function (v) { io.observe(v); });
+}
+
+// Copy the phone number.
+var copyBtn = document.getElementById("copy");
+var note = document.getElementById("copied");
+copyBtn.addEventListener("click", function () {
+  var text = document.getElementById("phone").textContent.trim();
+  function done(ok) {
+    note.textContent = ok ? "Copied" : "Select the number above to copy it";
+    setTimeout(function () { note.textContent = ""; }, 2500);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { done(true); }, function () {
+      var r = document.createRange(); r.selectNodeContents(document.getElementById("phone"));
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done(false);
+    });
+  } else { done(false); }
+});
+</script>
+</body>
+</html>
